@@ -1,6 +1,7 @@
 import { supabase } from '../utils/supabase.js';
 import Stripe from 'stripe';
 import { errorUtils } from '../utils/error-utils.js';
+import { getSubscriptionPeriodEnd } from './stripe-subscription-period.js';
 
 /**
  * Helper function to get a user ID from an email address
@@ -32,7 +33,7 @@ async function getUserIdFromEmail(email) {
 
 // Initialize Stripe with the API key
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-  apiVersion: '2023-10-16',
+  apiVersion: '2026-09-30.endive',
 });
 
 /**
@@ -112,7 +113,7 @@ export async function getSubscriptionDetails(c) {
                   subscription.status === 'trialing' ? 'Trial' : 
                   subscription.status,
           startDate: new Date(subscription.start_date * 1000).toISOString(),
-          renewalDate: new Date(subscription.current_period_end * 1000).toISOString(),
+          renewalDate: new Date((getSubscriptionPeriodEnd(subscription, (items) => items[0])) * 1000).toISOString(),
           amount: subscription.items.data[0]?.price?.unit_amount / 100 || 0,
           currency: subscription.currency?.toUpperCase() || 'USD',
           stripeSubscriptionId: subscription.id,

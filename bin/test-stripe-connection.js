@@ -14,7 +14,7 @@ async function main() {
     // Initialize Stripe with the secret key
     console.log('\nInitializing Stripe...');
     const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-      apiVersion: '2023-10-16'
+      apiVersion: '2026-09-30.endive'
     });
     
     // Test basic connectivity
