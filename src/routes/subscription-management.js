@@ -2,6 +2,24 @@ import { supabase } from '../utils/supabase.js';
 import Stripe from 'stripe';
 import { errorUtils } from '../utils/error-utils.js';
 
+function subscriptionPeriod(subscription, field, planItem) {
+  const legacy = Reflect.get(subscription, field);
+  if (typeof legacy === 'number') return legacy;
+  const list = Reflect.get(subscription, 'items');
+  const data = list && typeof list === 'object' ? Reflect.get(list, 'data') : undefined;
+  const items = (Array.isArray(data) ? data : []).filter(
+    (item) => typeof item === 'object' && item !== null,
+  );
+  const periods = new Set(items.map((item) => Reflect.get(item, field)));
+  const chosen = periods.size === 1 ? items[0] : planItem?.(items);
+  const value = chosen ? Reflect.get(chosen, field) : undefined;
+  return typeof value === 'number' ? value : undefined;
+}
+
+function getSubscriptionPeriodEnd(subscription, planItem) {
+  return subscriptionPeriod(subscription, 'current_period_end', planItem);
+}
+
 /**
  * Helper function to get a user ID from an email address
  * @param {string} email - User email
@@ -32,7 +50,7 @@ async function getUserIdFromEmail(email) {
 
 // Initialize Stripe with the API key
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-  apiVersion: '2023-10-16',
+  apiVersion: '2026-09-30.endive',
 });
 
 /**
@@ -112,7 +130,7 @@ export async function getSubscriptionDetails(c) {
                   subscription.status === 'trialing' ? 'Trial' : 
                   subscription.status,
           startDate: new Date(subscription.start_date * 1000).toISOString(),
-          renewalDate: new Date(subscription.current_period_end * 1000).toISOString(),
+          renewalDate: new Date((getSubscriptionPeriodEnd(subscription, (items) => items[0])) * 1000).toISOString(),
           amount: subscription.items.data[0]?.price?.unit_amount / 100 || 0,
           currency: subscription.currency?.toUpperCase() || 'USD',
           stripeSubscriptionId: subscription.id,
